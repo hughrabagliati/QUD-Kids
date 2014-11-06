@@ -1,0 +1,142 @@
+---
+title: "QUD Adult"
+author: "Hugh Rabagliati"
+date: "5 November 2014"
+output: html_document
+---
+
+Working Directory should be "AdultExperiment".
+
+***Action data***
+
+We read in action data from a single Excel spreadsheet, and then graph it and analyze it.
+
+1) Read in the data
+```{r, echo=FALSE}
+require(doBy)
+require(lme4)
+require(gdata)
+QUD.Act <-  read.xls("./Actions/Combined.xlsx", sheet=1)
+names(QUD.Act)[names(QUD.Act)=="Instrument.do.they.use.the.big.instrument.."] <- "Inst"
+contrasts(QUD.Act$Condition)[1] <- -1
+contrasts(QUD.Act$Block)[1] <- -1
+```
+
+2) Graph the data
+```{r}
+
+q <- summaryBy(Inst~Condition+Block+SubjNo, data = QUD.Act, FUN = c(mean,sd))
+q <- summaryBy(Inst.mean~Condition+Block, data = q, FUN = c(mean,sd))
+q$SE = q$Inst.mean.sd/sqrt(12)
+tapply(q$Inst.mean.mean, list(q$Block, q$Condition), FUN = mean) -> o
+tapply(q$SE, list(q$Block,q$Condition), FUN = mean) -> se
+
+ barplot(o, beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion actions using Instrument", names.arg = c("First Block", "Second Block"))
+ legend(2.,0.6, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)
+ points(c(1.5,4.5), o[,1], pch = 20, cex = 2, col = "black")
+ points(c(2.5,5.5), o[,2], pch = 20, cex = 2, col = "grey")
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)
+  arrows(c(1.5,4.5,2.5,5.5), (c(o) + c(se)+0.01), c(1.5,4.5,2.5,5.5), (c(o) - c(se)-0.01), code = 0)
+```
+
+3) Analyze the data
+```{r}
+summary(glmer(Inst~Condition*Block + (1+Condition|SubjNo) + (1+Condition|ItemNo), data = QUD.Act, family = "binomial"))
+summary(glmer(Inst~Condition + (1+Condition|SubjNo) + (1+Condition|ItemNo), data = QUD.Act[QUD.Act$Block == "First",], family = "binomial"))
+summary(glmer(Inst~Condition + (1+Condition|SubjNo) + (1+Condition|ItemNo), data = QUD.Act[QUD.Act$Block == "Second",], family = "binomial"))
+```
+
+
+***Eye tracking graphs and analysis***
+
+To process the data for analysis (take in the Excel files, expand them over timepoints), we need to load in the scripts in the proc_subj.r, ET_Import.r and Graphing.r files. Once that's done, we run the first set of code in QUD_Summary, which produces the dataframe QUD_Expand. That can also be loaded up, as below.
+
+```{r}
+load("QUD_Expand_Adult.RDATA")
+```
+
+We'll need to import some libraries for plotting etc. 
+
+```{r, echo=FALSE}
+library(reshape2)
+library(plyr)
+library(car)
+require(gdata)
+library(ggplot2)
+library(lme4)
+require(longitudinalData)
+require(doBy)
+```
+
+And now construct and then melt the dataframes that we use for plotting
+
+```{r}
+se <- function(x){
+  x <- sd(x)/sqrt(12)
+	return(x)
+	}
+
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+Name., data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond, data = QUD.Graph, FUN = c(mean,se))
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Inst"] <- "Instrument Question"
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Mod"] <- "Modifier Question"
+
+QUD.Graph2 <- melt(QUD.Graph,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("TimeFrame","Cond"),
+        # The source columns
+    measure.vars=c("Inst.mean","TA.mean", "DA.mean", "DI.mean" ),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    value.name="Prop",
+    variable.name ="Quadrant"
+    )
+QUD.Graph2$Quadrant <- revalue(QUD.Graph2$Quadrant, c("Inst.mean"="Target Instrument", "TA.mean"="Target Animal", "DA.mean" = "Distractor Animal","DI.mean" = "Distractor Instrument"))    
+
+QUD.Graph2$Quadrant <- ordered(QUD.Graph2$Quadrant, levels = c("Target Animal", "Distractor Animal", "Target Instrument", "Distractor Instrument"))
+```
+
+And then plot our graphs. The first graph plots mean prop of trials looking at the instrument over the time.
+```{r}
+ggplot(QUD.Graph,aes(TimeFrame,Inst.mean,linetype = Cond)) + stat_summary(fun.y = mean, geom = "line", size = 2) + geom_ribbon(aes(ymin=(Inst.mean - Inst.se), ymax=(Inst.mean + Inst.se)), alpha=0.2)+ theme(legend.title=element_blank(),legend.position="bottom")+labs(x = "Time (ms)",y = "Proportion of Looks")
+```
+The second plot is a standard spaghetti plot, showing looks to each different quadrant.
+```{r}
+ggplot(QUD.Graph2,aes(TimeFrame,Prop,linetype = Quadrant)) + facet_wrap(~Cond, nrow = 1, ncol = 2) + stat_summary(fun.y = mean, geom = "line", size = 1) + theme(legend.title=element_blank(),legend.position="bottom")+ theme_bw()+theme(legend.title=element_blank(),legend.position="bottom",legend.key = element_rect(linetype=0))+scale_linetype_manual(values=c(1,2,3,4))+labs(x = "Time (ms)",y = "Proportion of Looks")
+```
+
+To ***analyze*** this data, we split it into two 500ms time windows, beginning 200 and 700ms after the onset of the target word.
+
+```{r}
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))
+QUD.Window <- summaryBy(Inst~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
+QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)
+contrasts(QUD.Window$Cond)[1] <- -1
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)
+```
+
+We plot a graph
+```{r}
+q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))
+q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))
+q$SE = q$Inst.mean.sd/sqrt(12)
+tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o
+tapply(q$SE, list(q$Window,q$Cond), FUN = mean) -> se
+
+ barplot(o, beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument", xlab = "Window",names.arg = c("200ms-700ms", "700ms-1200ms"))
+ legend(1,0.8, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)
+ points(c(1.8,4.8), o[,1], pch = 20, cex = 2, col = "black")
+ points(c(2.2,5.2), o[,2], pch = 20, cex = 2, col = "grey",lwd = 2)
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)
+  arrows(c(1.8,4.8,2.2,5.2), (c(o) + c(se)), c(1.8,4.8,2.2,5.2), (c(o) - c(se)), code = 0)
+lines(c(1.8,4.8), o[,1], pch = 15, cex = 5, col = "black", lty = 3)
+lines(c(2.2,5.2), o[,2], pch = 15, cex = 5, col = "black", lty = 3)
+```
+
+We run our stats on each time window.
+
+```{r}
+summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))
+summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))
+
+```

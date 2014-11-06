@@ -1,0 +1,296 @@
+library(httr)#
+library(ggplot2)#
+add_cat <- function(width = 400, height = 400){#
+  r <- GET(paste("http://theoldreader.com/kittens", width, height, sep = "/"))#
+  stop_for_status(r)#
+  img <- content(r)#
+  bw <- 0.2989*img[,,1] + 0.5870*img[,,2] + 0.1140*img[,,3]#
+  lighter <- bw + (0.7 * (1-bw))#
+  annotation_raster(lighter, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf)#
+}#
+ggplot(mpg, aes(cty, hwy)) +#
+  add_cat() +#
+  geom_point()
+http://www.theguardian.com/stage/2014/aug/01/edinburgh-festival-diary-israeli-theatre-group-venue-hunt
+library(httr)#
+library(ggplot2)#
+add_cat <- function(width = 400, height = 400){#
+  r <- GET(paste("http://theoldreader.com/kittens", width, height, sep = "/"))#
+  stop_for_status(r)#
+  img <- content(r)#
+  bw <- 0.2989*img[,,1] + 0.5870*img[,,2] + 0.1140*img[,,3]#
+  lighter <- bw + (0.7 * (1-bw))#
+  annotation_raster(lighter, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf)#
+}#
+ggplot(mpg, aes(cty, hwy)) +#
+  add_cat() +#
+  geom_point()
+# This script is used to read in all the csv files in a folder.#
+#
+library(doBy)#
+#
+ET_Import.NoExpand = function(path_name,Timing,PlaceCodes){#
+list.files(path = path_name,full.names = T, pattern = ".xlsx") -> file_list#
+#
+ET = c()#
+for (x in file_list){#
+	FullSubj = proc_subj.NoExpand(x,Timing,PlaceCodes)#
+	ET = rbind(ET,FullSubj)#
+	print(x)#
+	}#
+	return(ET)#
+}
+# Functions for basic data analysis.#
+# Function to tell you whether participants looked to Instrument on each trial#
+# The last SummaryBy statement can be modified to look at only the first X gazes, currently set at 4 to capture the first 3 eye movements (1 is starting point), currently #
+LooksToInst = function(data){#
+require(plyr)#
+data = ddply(data,~Name.+Trial,transform,NextCode = c(Code[2:(length(Code))],Code[length(Code)]))#
+data$SwitInst = 0#
+data[data$NextCode %in% c("TI"),]$SwitInst = 1#
+data = ddply(data,~Name.+Trial,transform,LookEnd = c(TimeFrame[2:(length(TimeFrame))],TimeFrame[length(TimeFrame)]))#
+data$LookTime = data$LookEnd - data$TimeFrame#
+if ("RC" %in% colnames(data)){#
+data.Look <- summaryBy(Inst+SwitInst~Cond+Pop+Name.+ItemNo+ExOrd, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. #
+}#
+else data.Look <- summaryBy(Inst+SwitInst~Cond+Name.+ItemNo, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. #
+data.Look$Inst = 0#
+data.Look[data.Look$Inst.sum > 0,]$Inst = 1#
+return(data.Look)#
+}#
+########
+proc_subj.NoExpand = function(filename,Timing,PlaceCodes){#
+require(gdata)#
+subj = read.xls(filename, sheet=2)#
+#subj = filename#
+PlaceCodes$Cond = "Inst"#
+PlaceCodes$Block = "Second"#
+if (length(subj$Action.) > 1){#
+  if (grepl("-A",filename) == TRUE){ #
+  	PlaceCodes[PlaceCodes$ItemNo %in% c("T5","T7","T3","T2"),]$Cond = "Mod"} #
+  else{#
+  	PlaceCodes[!PlaceCodes$ItemNo %in% c("T5","T7","T3","T2"),]$Cond = "Mod"}#
+  if (grepl("-.F",filename) == TRUE){ #
+  	PlaceCodes[PlaceCodes$ItemNo %in% c("T5","T7","T3","T2"),]$Block = "First"} #
+  else{#
+  	PlaceCodes[!PlaceCodes$ItemNo %in% c("T5","T7","T3","T2"),]$Block = "First"}#
+  PlaceCodes$Block = as.factor(PlaceCodes$Block)#
+  PlaceCodes$Cond = as.factor(PlaceCodes$Cond)#
+  subj = merge(subj,PlaceCodes, by.x = "Trial",by.y = "ItemNo", sort = FALSE)#
+#
+  subj = merge(subj,Timing, by.x = "Verb",by.y = "Verb", sort = FALSE)#
+}#
+#
+subj$Marker.Name = as.character(subj$Marker.Name)#
+subj$Marker.Name = gsub(" ","",subj$Marker.Name)#
+subj$Code = NA#
+subj$Code = subj$Marker.Name#
+#
+for (i in unique(PlaceCodes$ItemNo)){#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "UL",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "UL",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$UL)}#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "UR",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "UR",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$UR)}#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "LL",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "LL",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$LL)}#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "LR",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "LR",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$LR)}#
+	}#
+#
+subj$PrepFrame = round((subj$Prep - subj$Vb)*30)#
+subj$NP2Frame = round((subj$NP2 - subj$Vb)*30)#
+#
+subj$Hour = read.table(textConnection(as.character(subj$Start)), sep = ":")[,1]#
+subj$Min = read.table(textConnection(as.character(subj$Start)), sep = ":")[,2]#
+subj$Sec = read.table(textConnection(as.character(subj$Start)), sep = ":")[,3]#
+subj$Frame = read.table(textConnection(as.character(subj$Start)), sep = ":")[,4]#
+subj$FullTimeFrame = subj$Frame+(subj$Sec*30)+(subj$Min*1798)+(subj$Hour*107892)#
+subj$TimeFrame = NA#
+for (i in unique(subj$Trial)){#
+	subj[subj$Trial == i,]$TimeFrame = subj[subj$Trial == i,]$FullTimeFrame - min(subj[subj$Trial == i,]$FullTimeFrame)#
+	}	#
+subj -> FullSubj#
+#
+FullSubj$Inst = 0#
+if (length(FullSubj[FullSubj$Code == "TI",]$Inst>0)){FullSubj[FullSubj$Code == "TI",]$Inst = 1}#
+#
+FullSubj$TA = 0#
+if (length(FullSubj[FullSubj$Code == "TA",]$TA>0)){FullSubj[FullSubj$Code == "TA",]$TA =  1}#
+#
+FullSubj$DI = 0#
+if (length(FullSubj[FullSubj$Code == "DI",]$DI>0)){FullSubj[FullSubj$Code == "DI",]$DI = 1}#
+#
+FullSubj$DA = 0#
+if (length(FullSubj[FullSubj$Code == "DA",]$DA > 0)){FullSubj[FullSubj$Code == "DA",]$DA = 1}#
+#
+return(FullSubj)#
+}
+library(reshape2)#
+library(plyr)#
+library(car)#
+require(gdata)#
+library(ggplot2)#
+library(lme4)#
+require(longitudinalData)#
+# QUD Processing scripts#
+Timing = read.csv("Timing.csv",header = T)#
+PlaceCodes = read.csv("PlaceCodes.csv",header =  T)#
+QUD = ET_Import.NoExpand("./SubjData/",Timing,PlaceCodes)#
+QUD <- QUD[with(QUD, order(Name.,Trial,TimeFrame)),]#
+#
+QUD.Look = LooksToInst(QUD)#
+one.way.plot(QUD.Look$Inst, QUD.Look$Cond, QUD.Look$Name, x.label = "Question Type", main.label = "", y.label = "Trials with looks to Instrument")#
+#
+summary(glmer(Inst~Cond + (1+Cond|Name.)+(1+Cond|ItemNo), data= QUD.Look, family = "binomial"))#
+# Only analyzing the first block, as there are perseveration effects#
+QUD <- QUD[QUD$Block == "First",]#
+ddply(QUD, .(Name.,Trial,Cond,Vb,Prep,NP2,PrepFrame,NP2Frame), summarize, TimeFrame = c(0:max(TimeFrame))) -> QUD.Expand#
+QUD.Expand <- merge(QUD,QUD.Expand, by = c("Name.","Trial","Cond","TimeFrame","Vb","Prep","NP2","PrepFrame","NP2Frame"), all= TRUE)#
+QUD.Expand$Inst <- t(imputation(matrix(QUD.Expand$Inst, nrow = 1),method = "locf"))#
+QUD.Expand$TA <- t(imputation(matrix(QUD.Expand$TA, nrow = 1),method = "locf"))#
+QUD.Expand$DA <- t(imputation(matrix(QUD.Expand$DA, nrow = 1),method = "locf"))#
+QUD.Expand$DI <- t(imputation(matrix(QUD.Expand$DI, nrow = 1),method = "locf"))#
+#
+QUD.Expand <- ddply(QUD.Expand, .(Name.,Trial), transform, Period = ifelse(TimeFrame >= NP2Frame,"NP2",ifelse(TimeFrame >= PrepFrame,"Prep","Verb"))) #
+QUD.Expand <- ddply(QUD.Expand, .(Name.,Trial), transform, TimeFrame = TimeFrame - NP2Frame) #
+QUD.Expand$TimeFrame <- QUD.Expand$TimeFrame* 30#
+#
+se <- function(x){#
+	x <- sd(x)/sqrt(6)#
+	return(x)#
+	}#
+#
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+Name., data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)#
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond, data = QUD.Graph, FUN = c(mean,se))#
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Inst"] <- "Instrument Question"#
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Mod"] <- "Modifier Question"#
+ggplot(QUD.Graph,aes(TimeFrame,Inst.mean,linetype = Cond)) + stat_summary(fun.y = mean, geom = "line", size = 2) + geom_ribbon(aes(ymin=(Inst.mean - Inst.se), ymax=(Inst.mean + Inst.se)), alpha=0.2)+ theme(legend.title=element_blank(),legend.position="bottom")+labs(x = "Time (ms)",y = "Proportion of Looks")#
+#+ facet_wrap(~Age+Cond) #
+#
+QUD.Graph2 <- melt(QUD.Graph,#
+        # ID variables - all the variables to keep but not split apart on#
+    id.vars=c("TimeFrame","Cond"),#
+        # The source columns#
+    measure.vars=c("Inst.mean","TA.mean", "DA.mean", "DI.mean" ),#
+        # Name of the destination column that will identify the original#
+        # column that the measurement came from#
+    value.name="Prop",#
+    variable.name ="Quadrant"#
+    )#
+QUD.Graph2$Quadrant <- revalue(QUD.Graph2$Quadrant, c("Inst.mean"="Target Instrument", "TA.mean"="Target Animal", "DA.mean" = "Distractor Animal","DI.mean" = "Distractor Instrument"))    #
+QUD.Graph2$Quadrant <- ordered(QUD.Graph2$Quadrant, levels = c("Target Animal", "Distractor Animal", "Target Instrument", "Distractor Instrument"))#
+#levels(QUD.Graph2$Cond)[levels(QUD.Graph2$Cond)=="Inst"] <- "Instrument Question"#
+#levels(QUD.Graph2$Cond)[levels(QUD.Graph2$Cond)=="Mod"] <- "Modifier Question"#
+#
+ggplot(QUD.Graph2,aes(TimeFrame,Prop,linetype = Quadrant)) + facet_wrap(~Cond, nrow = 1, ncol = 2) + stat_summary(fun.y = mean, geom = "line", size = 1) + theme(legend.title=element_blank(),legend.position="bottom")+ theme_bw()+theme(legend.title=element_blank(),legend.position="bottom",legend.key = element_rect(linetype=0))+scale_linetype_manual(values=c(1,2,3,4))+labs(x = "Time (ms)",y = "Proportion of Looks")
+require(lme4)#
+# Requires the QUD_Summary scripts to be run first.#
+#
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))#
+QUD.Window <- summaryBy(Inst~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)#
+QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)#
+contrasts(QUD.Window$Cond)[1] <- -1#
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)#
+#
+#Stats#
+#Early window#
+summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))#
+summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))#
+#
+q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))#
+q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))#
+q$SE = q$Inst.mean.sd/sqrt(12)#
+tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o#
+tapply(q$SE, list(q$Window,q$Cond), FUN = mean) -> se#
+#
+ barplot(o, beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument", xlab = "Window",names.arg = c("200ms-700ms", "700ms-1200ms"))#
+ legend(1,0.8, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)#
+ points(c(1.8,4.8), o[,1], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[,2], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,4.8,2.2,5.2), (c(o) + c(se)), c(1.8,4.8,2.2,5.2), (c(o) - c(se)), code = 0)#
+lines(c(1.8,4.8), o[,1], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[,2], pch = 15, cex = 5, col = "black", lty = 3)
+require(lme4)#
+# Requires the QUD_Summary scripts to be run first.#
+#
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))#
+QUD.Window <- summaryBy(Inst~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)#
+QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)#
+contrasts(QUD.Window$Cond)[1] <- -1#
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)#
+#
+#Stats#
+#Early window#
+summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))#
+summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))#
+#
+q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))#
+q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))#
+q$SE = q$Inst.mean.sd/sqrt(12)#
+tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o#
+tapply(q$SE, list(q$Window,q$Cond), FUN = mean) -> se#
+#
+ barplot(o, beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument", xlab = "Window",names.arg = c("200ms-700ms", "700ms-1200ms"))#
+ legend(1,0.8, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)#
+ points(c(1.8,4.8), o[,1], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[,2], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,4.8,2.2,5.2), (c(o) + c(se)), c(1.8,4.8,2.2,5.2), (c(o) - c(se)), code = 0)#
+lines(c(1.8,4.8), o[,1], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[,2], pch = 15, cex = 5, col = "black", lty = 3)
+summary(QUD.Window)
+summary(QUD.Window)
+summary(QUD.Expand)
+require(lme4)#
+# Requires the QUD_Summary scripts to be run first.#
+#
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))#
+QUD.Window <- summaryBy(Inst~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)#
+QUD.Window$Inst <- ifelse(QUD.Window$DA > 0,1,0)#
+contrasts(QUD.Window$Cond)[1] <- -1#
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)#
+#
+#Stats#
+#Early window#
+summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))#
+summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))#
+#
+q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))#
+q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))#
+q$SE = q$Inst.mean.sd/sqrt(12)#
+tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o#
+tapply(q$SE, list(q$Window,q$Cond), FUN = mean) -> se#
+#
+ barplot(o, beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument", xlab = "Window",names.arg = c("200ms-700ms", "700ms-1200ms"))#
+ legend(1,0.8, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)#
+ points(c(1.8,4.8), o[,1], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[,2], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,4.8,2.2,5.2), (c(o) + c(se)), c(1.8,4.8,2.2,5.2), (c(o) - c(se)), code = 0)#
+lines(c(1.8,4.8), o[,1], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[,2], pch = 15, cex = 5, col = "black", lty = 3)
+require(lme4)#
+# Requires the QUD_Summary scripts to be run first.#
+#
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))#
+QUD.Window <- summaryBy(DA~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)#
+QUD.Window$Inst <- ifelse(QUD.Window$DA > 0,1,0)#
+contrasts(QUD.Window$Cond)[1] <- -1#
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)#
+#
+#Stats#
+#Early window#
+summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))#
+summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))#
+#
+q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))#
+q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))#
+q$SE = q$Inst.mean.sd/sqrt(12)#
+tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o#
+tapply(q$SE, list(q$Window,q$Cond), FUN = mean) -> se#
+#
+ barplot(o, beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument", xlab = "Window",names.arg = c("200ms-700ms", "700ms-1200ms"))#
+ legend(1,0.8, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)#
+ points(c(1.8,4.8), o[,1], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[,2], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,4.8,2.2,5.2), (c(o) + c(se)), c(1.8,4.8,2.2,5.2), (c(o) - c(se)), code = 0)#
+lines(c(1.8,4.8), o[,1], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[,2], pch = 15, cex = 5, col = "black", lty = 3)

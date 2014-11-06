@@ -1,0 +1,214 @@
+---
+title: "QUD Kids"
+author: "Hugh Rabagliati"
+date: "5 November 2014"
+output: html_document
+---
+
+Working Directory should be "AdultExperiment".
+
+***Action data***
+
+We read in action data from a single Excel spreadsheet, and then graph it and analyze it.
+
+1) Read in the data
+```{r, echo=FALSE}
+library(doBy)
+library(lme4)
+
+qud.a <- read.csv("./Actions/actions.csv", header = T)
+qud.a$Age <- as.factor(ifelse(qud.a$Age.group ==1, "five","seven"))
+qud.a <- qud.a[!is.na(qud.a$Instr),]
+contrasts(qud.a$Age)[1] <- -1
+contrasts(qud.a$QuestCond)[1] <- -1
+contrasts(qud.a$VerbCond)[1] <- -1
+```
+
+2) Graph the data
+```{r}
+k <- summaryBy(Instr~QuestCond+VerbCond+Age+Participant.no, data = qud.a, FUN = c(mean,sd))
+k <- summaryBy(Instr.mean~QuestCond+VerbCond+Age, data = k, FUN = c(mean,sd))
+k$SE = k$Instr.mean.sd/sqrt(6)
+k$VerbCond = factor(k$VerbCond, levels(k$VerbCond)[c(2,1)])
+tapply(k$Instr.mean.mean, list(k$QuestCond,k$VerbCond,k$Age), FUN = mean) -> o
+tapply(k$SE, list(k$QuestCond,k$VerbCond,k$Age), FUN = mean) -> se
+old.par <- par(mfrow=c(1, 2))
+ barplot(o[,,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion actions using Instrument",  main = "5-year-olds",names.arg = c("Instrument-bias verb", "Equi-bias verb"))
+ legend(1.8,0.5, legend = c("Instrument Question", "Modifier Question"), bty = "n", col = c("black","grey"), pch = 20)
+ points(c(1.5,4.5), o[1,,1], pch = 20, cex = 2, col = "black")
+ points(c(2.5,5.5), o[2,,1], pch = 20, cex = 2, col = "grey")
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)
+  arrows(c(1.5,2.5,4.5,5.5), (c(o[,,1]) + c(se[,,1])), c(1.5,2.5,4.5,5.5), (c(o[,,1]) - c(se[,,1])), code = 0)
+
+ barplot(o[,,2], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion actions using Instrument",  main = "7-year-olds",names.arg = c("Instrument-bias verb", "Equi-bias verb"))
+ points(c(1.5,4.5), o[1,,2], pch = 20, cex = 2, col = "black")
+ points(c(2.5,5.5), o[2,,2], pch = 20, cex = 2, col = "grey")
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)
+ arrows(c(1.5,2.5,4.5,5.5), (c(o[,,2]) + c(se[,,2])), c(1.5,2.5,4.5,5.5), (c(o[,,2]) - c(se[,,2])), code = 0)
+ par(old.par)
+```
+
+Analyzing this data turned out to be hard, because we have considerable "separation" - where a predictor perfectly separates two groups of data (ie our experiment worked too well!).
+We began by trying to use logistic regression, but the separation meant that it wouldnt fit. So, we used ANOVAs, calculating p values by permutation. To avoid this document taking all day to generate, we just use 100 permutations here.
+
+Our ANOVA is 2 (age) * 2(QUD) * 2 (verb bias), and the print out at the end is a standard ANOVA, and then the set of permutation-derived p values.
+
+```{r, echo=FALSE}
+#How about an ANOVA using permutation tests to calculate p values?
+summaryBy(Instr~Participant.no+VerbCond+QuestCond+Age, data = qud.a, keep.names = T) -> qud.sum
+nreps <- 100
+Act.ANOVA = matrix(data = NA, nrow = nreps, ncol = 7)
+summary(aov(lm(Instr~Age*VerbCond*QuestCond, data = qud.sum))) -> perm.orig
+for (j in 1:7){
+  Act.ANOVA[1,j] <- perm.orig[[1]]$"F value"[j]
+  }
+for (i in 2:nreps) {
+  newInstr <- sample(qud.sum$Instr, length(qud.sum$Instr))
+  mod2 <- lm(newInstr~qud.sum$Age*qud.sum$VerbCond*qud.sum$QuestCond)
+  b <- summary(aov(mod2))
+  for (j in 1:7){
+  Act.ANOVA[i,j] <- b[[1]]$"F value"[j]
+  	}
+  }
+print(perm.orig)
+for (i in 1:7){
+print(length(Act.ANOVA[,i][Act.ANOVA[,i]>=Act.ANOVA[1,i]])/nreps)
+ }
+
+
+```
+
+*** Eye tracking graphs and analysis***
+
+To process the data for analysis (take in the Excel files, expand them over timepoints), we need to load in the scripts in the proc_subj.r, ET_Import.r and Graphing.r files. Once that's done, we run the first set of code in QUD_Summary, which produces the dataframe QUD_Expand. That can also be loaded up, as below.
+
+```{r}
+load("QUD_Expand_Child.RDATA")
+```
+
+We'll need to import some libraries for plotting etc. 
+
+```{r, echo=FALSE}
+library(reshape2)
+library(plyr)
+library(car)
+require(gdata)
+require(ggplot2)
+require(longitudinalData)
+```
+
+And now construct and then melt the dataframes that we use for plotting
+
+```{r}
+
+se <- function(x){
+  x <- sd(x)/sqrt(6)
+	return(x)
+	}
+
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+QCond+Name.+Age, data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+QCond+Age, data = QUD.Graph, FUN = c(mean,se))
+levels(QUD.Graph$QCond)[levels(QUD.Graph$QCond)=="Inst"] <- "Instrument Question"
+levels(QUD.Graph$QCond)[levels(QUD.Graph$QCond)=="Mod"] <- "Modifier Question"
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Inst"] <- "Instrument-bias Verbs"
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Equi"] <- "Equi-bias Verbs"
+QUD.Graph$Cond <- relevel(QUD.Graph$Cond, "Instrument-bias Verbs")
+QUD.Graph$QCond <- relevel(QUD.Graph$QCond, "Instrument Question")
+
+QUD.Graph2 <- melt(QUD.Graph,
+        # ID variables - all the variables to keep but not split apart on
+    id.vars=c("TimeFrame","Cond","QCond","Age"),
+        # The source columns
+    measure.vars=c("Inst.mean","TA.mean", "DA.mean", "DI.mean" ),
+        # Name of the destination column that will identify the original
+        # column that the measurement came from
+    value.name="Prop",
+    variable.name ="Quadrant"
+    )
+QUD.Graph2$Quadrant <- revalue(QUD.Graph2$Quadrant, c("Inst.mean"="Target Instrument", "TA.mean"="Target Animal", "DA.mean" = "Distractor Animal","DI.mean" = "Distractor Instrument"))    
+QUD.Graph2$Quadrant <- ordered(QUD.Graph2$Quadrant, levels = c("Target Animal", "Distractor Animal", "Target Instrument", "Distractor Instrument"))
+```
+
+And then plot our graphs. The first graph plots mean prop of trials looking at the instrument over the time.
+
+```{r}
+ggplot(QUD.Graph,aes(TimeFrame,Inst.mean,linetype = QCond)) + facet_wrap(~Age+Cond) + stat_summary(fun.y = mean, geom = "line", size = 2) + geom_ribbon(aes(ymin=(Inst.mean - Inst.se), ymax=(Inst.mean + Inst.se)), alpha=0.2)+ theme(legend.title=element_blank(),legend.position="bottom")+labs(x = "Time (ms)",y = "Proportion of Looks")
+```
+
+The second plot is a standard spaghetti plot, showing looks to each different quadrant.
+```{r}
+ggplot(QUD.Graph2,aes(TimeFrame,Prop,linetype = Quadrant)) + facet_wrap(~Age+Cond+QCond, nrow = 4, ncol = 2) + stat_summary(fun.y = mean, geom = "line", size = 1) + theme(legend.title=element_blank(),legend.position="bottom")+ theme(legend.title=element_blank(),legend.position="bottom")+scale_linetype_manual(values=c(1,2,3,4))+labs(x = "Time (ms)",y = "Proportion of Looks")
+```
+
+
+To ***analyze*** this data, we split it into two 500ms time windows, beginning 200 and 700ms after the onset of the target word.
+
+```{r}
+
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))
+QUD.Window <- summaryBy(Inst~Cond+QCond+Trial+Name.+Age+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
+QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)
+contrasts(QUD.Window$QCond)[1] <- -1
+contrasts(QUD.Window$Age)[1] <- -1
+contrasts(QUD.Window$Cond)[1] <- -1
+contrasts(QUD.Window$Window)[1] <- -1
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)
+
+```
+
+We plot a graph
+```{r}
+k <- summaryBy(Inst~QCond+Cond+Age+Name.+Window, data = QUD.Window, FUN = c(mean,sd))
+k <- summaryBy(Inst.mean~QCond+Cond+Age+Window, data = k, FUN = c(mean,sd))
+k$SE = k$Inst.mean.sd/sqrt(6)
+tapply(k$Inst.mean.mean, list(k$QCond,k$Window,k$Cond,k$Age), FUN = mean) -> o
+tapply(k$SE, list(k$QCond,k$Window,k$Cond,k$Age), FUN = mean) -> se
+
+old.par <- par(mfrow=c(2, 2))
+for (i in c(1:2)){
+  for (j in c(1:2)){
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))
+ if (i == 1){
+ 	if (j == 1){
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)
+	 }else{
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}
+	 }else{
+	 if (j ==1){
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")
+	 }else{
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")
+	 }
+	 }
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)
+}
+} 
+par(old.par)
+```
+
+We run our stats on each time window.
+
+```{r}
+#Early window
+summary(glmer(Inst~Age*Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow"), family = "binomial"))
+#Produces interaction btwn age and VerbCond
+#Check each age group
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" & Age == "5-years"), family = "binomial"))
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" & Age == "7-years"), family = "binomial"))
+#Produces effect of Cond for youngest, and QCond for older.
+
+#Late window
+summary(glmer(Inst~Age*Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow"), family = "binomial"))
+#Produces interaction btwn age and VerbCond
+
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow" & Age == "5-years"), family = "binomial"))
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow" & Age == "7-years"), family = "binomial"))
+# Youngest show effect of both QCond and Cond
+# Oldest only show effect of QCond
+```

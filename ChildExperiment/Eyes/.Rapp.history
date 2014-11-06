@@ -1,0 +1,564 @@
+library(httr)#
+library(ggplot2)#
+add_cat <- function(width = 400, height = 400){#
+  r <- GET(paste("http://theoldreader.com/kittens", width, height, sep = "/"))#
+  stop_for_status(r)#
+  img <- content(r)#
+  bw <- 0.2989*img[,,1] + 0.5870*img[,,2] + 0.1140*img[,,3]#
+  lighter <- bw + (0.7 * (1-bw))#
+  annotation_raster(lighter, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf)#
+}#
+ggplot(mpg, aes(cty, hwy)) +#
+  add_cat() +#
+  geom_point()
+http://www.theguardian.com/stage/2014/aug/01/edinburgh-festival-diary-israeli-theatre-group-venue-hunt
+library(httr)#
+library(ggplot2)#
+add_cat <- function(width = 400, height = 400){#
+  r <- GET(paste("http://theoldreader.com/kittens", width, height, sep = "/"))#
+  stop_for_status(r)#
+  img <- content(r)#
+  bw <- 0.2989*img[,,1] + 0.5870*img[,,2] + 0.1140*img[,,3]#
+  lighter <- bw + (0.7 * (1-bw))#
+  annotation_raster(lighter, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf)#
+}#
+ggplot(mpg, aes(cty, hwy)) +#
+  add_cat() +#
+  geom_point()
+# This script is used to read in all the csv files in a folder.#
+#
+library(doBy)#
+#
+ET_Import.NoExpand = function(path_name,Timing,PlaceCodes){#
+list.files(path = path_name,full.names = T, pattern = ".xlsx") -> file_list#
+#
+ET = c()#
+for (x in file_list){#
+	print(x)#
+	FullSubj = proc_subj.NoExpand(x,Timing,PlaceCodes)#
+	ET = rbind(ET,FullSubj)#
+	print(x)#
+	}#
+	return(ET)#
+}
+# Graphing Scripts#
+#
+library(doBy)#
+	library(plyr)#
+	library(car)#
+#
+	# Graphing funciton#
+	one.way.plot = function(DV,IV1,SubjNo,x.label ="Add X Label", main.label = "Add main header", y.label = "Add y label", log.test = FALSE){#
+		print("Logit Transform DV")#
+		ylim.grph <- c(0,1)#
+	    if(log.test == TRUE){#
+	    	logit(DV) -> DV#
+	    	ylim.grph <- c(-4,1)}#
+	    tapply(DV, INDEX = list(IV1), FUN = mean,na.rm = T) -> graph.data#
+	    tapply(DV, INDEX = list(IV1), FUN = sd, na.rm = T) -> graph.se#
+	    graph.se/sqrt(length(unique(SubjNo))) -> graph.se#
+	    barplot(graph.data, beside = T, col = c("white"), ylim = ylim.grph, ylab = y.label, xlab = x.label, main = main.label, border = NA) -> dat.g#
+	    rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col = "lightgray")#
+	    abline(h=(seq(-3,1)), col="black", lty="dotted")#
+	    legend(4.5,1.3,rownames(graph.data), fill = c("red","blue"))#
+	    points(dat.g, graph.data, col = c("red","blue"), bg = c("red","blue"), pch = 22, cex = 6)#
+	   arrows(dat.g, (graph.data+graph.se), dat.g, (graph.data-graph.se), angle = 90, lwd = 2, lty = 1, code = 0)#
+	}
+# Functions for basic data analysis.#
+# Function to tell you whether participants looked to Instrument on each trial#
+# The last SummaryBy statement can be modified to look at only the first X gazes, currently set at 4 to capture the first 3 eye movements (1 is starting point), currently #
+LooksToInst = function(data){#
+require(plyr)#
+data = ddply(data,~Name.+Trial,transform,NextCode = c(Code[2:(length(Code))],Code[length(Code)]))#
+data$SwitInst = 0#
+data[data$NextCode %in% c("TI"),]$SwitInst = 1#
+data = ddply(data,~Name.+Trial,transform,LookEnd = c(TimeFrame[2:(length(TimeFrame))],TimeFrame[length(TimeFrame)]))#
+data$LookTime = data$LookEnd - data$TimeFrame#
+if ("RC" %in% colnames(data)){#
+data.Look <- summaryBy(Inst+SwitInst~Age+QCond+Cond+Pop+Name.+ItemNo+ExOrd, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. #
+}#
+else data.Look <- summaryBy(Inst+SwitInst~Age+QCond+Cond+Name.+ItemNo, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. #
+data.Look$Inst = 0#
+data.Look[data.Look$Inst.sum > 0,]$Inst = 1#
+return(data.Look)#
+}#
+########
+proc_subj.NoExpand = function(filename,Timing,PlaceCodes){#
+require(gdata)#
+subj = read.xls(filename, sheet=2)#
+#subj = filename#
+PlaceCodes$Cond = "Inst"#
+PlaceCodes$QCond = "Inst"#
+if (length(subj$Action.) > 1){#
+  if (grepl("-e",filename) == TRUE){ #
+ 	PlaceCodes$Cond = "Equi"} #
+  if (grepl("-m",filename) == TRUE){ #
+  	PlaceCodes$QCond = "Mod"} #
+  PlaceCodes$Cond = as.factor(PlaceCodes$Cond)#
+  PlaceCodes$QCond = as.factor(PlaceCodes$QCond)#
+  subj = merge(subj,PlaceCodes, by.x = "Trial",by.y = "ItemNo", sort = FALSE)#
+#
+  subj = merge(subj,Timing, by.x = "Verb",by.y = "Verb", sort = FALSE)#
+}#
+#
+subj$Marker.Name = as.character(subj$Marker.Name)#
+subj$Marker.Name = gsub(" ","",subj$Marker.Name)#
+subj$Code = NA#
+subj$Code = subj$Marker.Name#
+#
+for (i in unique(PlaceCodes$ItemNo)){#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "UL",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "UL",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$UL)}#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "UR",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "UR",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$UR)}#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "LL",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "LL",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$LL)}#
+	if (length(subj[subj$Trial == i & subj$Marker.Name == "LR",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "LR",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$LR)}#
+	}#
+#
+subj$PrepFrame = round((subj$Prep - subj$Vb)*30)#
+subj$NP2Frame = round((subj$NP2 - subj$Vb)*30)#
+#
+subj$Hour = read.table(textConnection(as.character(subj$Start)), sep = ":")[,1]#
+subj$Min = read.table(textConnection(as.character(subj$Start)), sep = ":")[,2]#
+subj$Sec = read.table(textConnection(as.character(subj$Start)), sep = ":")[,3]#
+subj$Frame = read.table(textConnection(as.character(subj$Start)), sep = ":")[,4]#
+subj$FullTimeFrame = subj$Frame+(subj$Sec*30)+(subj$Min*1798)+(subj$Hour*107892)#
+subj$TimeFrame = NA#
+for (i in unique(subj$Trial)){#
+	subj[subj$Trial == i,]$TimeFrame = subj[subj$Trial == i,]$FullTimeFrame - min(subj[subj$Trial == i,]$FullTimeFrame)#
+	}	#
+subj -> FullSubj#
+#
+FullSubj$Inst = 0#
+if (length(FullSubj[FullSubj$Code == "TI",]$Inst>0)){FullSubj[FullSubj$Code == "TI",]$Inst = 1}#
+#
+FullSubj$TA = 0#
+if (length(FullSubj[FullSubj$Code == "TA",]$TA>0)){FullSubj[FullSubj$Code == "TA",]$TA =  1}#
+#
+FullSubj$DI = 0#
+if (length(FullSubj[FullSubj$Code == "DI",]$DI>0)){FullSubj[FullSubj$Code == "DI",]$DI = 1}#
+#
+FullSubj$DA = 0#
+if (length(FullSubj[FullSubj$Code == "DA",]$DA > 0)){FullSubj[FullSubj$Code == "DA",]$DA = 1}#
+#
+return(FullSubj)#
+}
+library(reshape2)#
+library(plyr)#
+library(car)#
+require(gdata)#
+require(ggplot2)#
+require(longitudinalData)#
+#
+# QUD Processing scripts#
+Timing = read.csv("Timing.csv",header = T)#
+PlaceCodes = read.csv("PlaceCodes.csv",header =  T)#
+QUD7 = ET_Import.NoExpand("./SubjData/7YQUD/",Timing,PlaceCodes)#
+QUD7$Age = "7-years"#
+QUD5 = ET_Import.NoExpand("./SubjData/5yQUD/",Timing,PlaceCodes)#
+QUD5$Age = "5-years"#
+QUD = rbind(QUD5,QUD7)#
+QUD$Age <- as.factor(QUD$Age)#
+QUD <- QUD[with(QUD, order(Name.,Trial,TimeFrame)),]#
+#
+#QUD.Look = LooksToInst(QUD)#
+#one.way.plot(QUD.Look$Inst, QUD.Look$QCond, QUD.Look$Name, x.label = "Question Type", main.label = "", y.label = "Trials with looks to Instrument")#
+#summary(glmer(Inst~Cond + (1+Cond|Name.)+(1+Cond|ItemNo), data= QUD.Look, family = "binomial"))#
+ddply(QUD, .(Name.,Trial,Cond,QCond,Age,Vb,Prep,NP2,PrepFrame,NP2Frame), summarize, TimeFrame = c(0:max(TimeFrame))) -> QUD.Expand#
+QUD.Expand <- merge(QUD,QUD.Expand, by = c("Name.","Trial","Cond","QCond","Age","TimeFrame","Vb","Prep","NP2","PrepFrame","NP2Frame"), all= TRUE)#
+QUD.Expand$Inst <- t(imputation(matrix(QUD.Expand$Inst, nrow = 1),method = "locf"))#
+QUD.Expand$TA <- t(imputation(matrix(QUD.Expand$TA, nrow = 1),method = "locf"))#
+QUD.Expand$DA <- t(imputation(matrix(QUD.Expand$DA, nrow = 1),method = "locf"))#
+QUD.Expand$DI <- t(imputation(matrix(QUD.Expand$DI, nrow = 1),method = "locf"))#
+#
+QUD.Expand <- ddply(QUD.Expand, .(Name.,Trial), transform, Period = ifelse(TimeFrame >= NP2Frame,"NP2",ifelse(TimeFrame >= PrepFrame,"Prep","Verb"))) #
+QUD.Expand <- ddply(QUD.Expand, .(Name.,Trial), transform, TimeFrame = TimeFrame - NP2Frame) #
+QUD.Expand$TimeFrame <- QUD.Expand$TimeFrame* 30#
+#
+se <- function(x){#
+	x <- sd(x)/sqrt(6)#
+	return(x)#
+	}#
+#
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+QCond+Name.+Age, data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)#
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+QCond+Age, data = QUD.Graph, FUN = c(mean,se))#
+levels(QUD.Graph$QCond)[levels(QUD.Graph$QCond)=="Inst"] <- "Instrument Question"#
+levels(QUD.Graph$QCond)[levels(QUD.Graph$QCond)=="Mod"] <- "Modifier Question"#
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Inst"] <- "Instrument-bias Verbs"#
+levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Equi"] <- "Equi-bias Verbs"#
+QUD.Graph$Cond <- relevel(QUD.Graph$Cond, "Instrument-bias Verbs")#
+QUD.Graph$QCond <- relevel(QUD.Graph$QCond, "Instrument Question")#
+##
+#for (i in unique(QUD.Graph$Cond)){#
+#		plot(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$TimeFrame,QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$Inst.mean, type = "l", lwd = 3, main = paste("verb =",i,sep =" "),ylim= c(0,1),bty="n",xlab = "Time (ms)",ylab ="Proportion of looks")#
+#		lines(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$TimeFrame,QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$Inst.mean, type = "l", lty = 2, lwd = 3)#
+#		arrows(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$Inst.mean+QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$Inst.se),QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$Inst.mean-QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Inst",]$Inst.se),code = 0)#
+#		arrows(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$Inst.mean+QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$Inst.se),QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$Inst.mean-QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == "Mod",]$Inst.se),code = 0)#
+#		#
+#	for (j in unique(QUD.Graph$QCond)){#
+#		plot(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$Inst.mean, type = "l", lwd = 3,lty = 2,  ylim= c(0,1), xlim = c(-300,1500), main = paste("verb =",i,",Quest =",j,sep =" "),bty="n",xlab = "Time (ms)",ylab ="Proportion of looks")#
+#		lines(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TA.mean, type = "l",  lwd = 3)#
+#		lines(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DA.mean, type = "l",  lwd = 3,col = "red")#
+#		lines(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DI.mean, type = "l", lty = 2, lwd = 3,col = "red")#
+#		arrows(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$Inst.mean+QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$Inst.se),QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$Inst.mean-QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$Inst.se),code = 0)#
+#		arrows(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TA.mean+QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TA.se),QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TA.mean-QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TA.se),code = 0)#
+#		arrows(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DA.mean+QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DA.se),QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DA.mean-QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DA.se),code = 0)#
+#		arrows(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DI.mean+QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DI.se),QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$TimeFrame,(QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DI.mean-QUD.Graph[QUD.Graph$Cond == i & QUD.Graph$QCond == j,]$DI.se),code = 0)#
+##
+#		}#
+#	}#
+#
+ggplot(QUD.Graph,aes(TimeFrame,Inst.mean,linetype = QCond)) + facet_wrap(~Age+Cond) + stat_summary(fun.y = mean, geom = "line", size = 2) + geom_ribbon(aes(ymin=(Inst.mean - Inst.se), ymax=(Inst.mean + Inst.se)), alpha=0.2)+ theme(legend.title=element_blank(),legend.position="bottom")+labs(x = "Time (ms)",y = "Proportion of Looks")#
+#
+QUD.Graph2 <- melt(QUD.Graph,#
+        # ID variables - all the variables to keep but not split apart on#
+    id.vars=c("TimeFrame","Cond","QCond","Age"),#
+        # The source columns#
+    measure.vars=c("Inst.mean","TA.mean", "DA.mean", "DI.mean" ),#
+        # Name of the destination column that will identify the original#
+        # column that the measurement came from#
+    value.name="Prop",#
+    variable.name ="Quadrant"#
+    )#
+QUD.Graph2$Quadrant <- revalue(QUD.Graph2$Quadrant, c("Inst.mean"="Target Instrument", "TA.mean"="Target Animal", "DA.mean" = "Distractor Animal","DI.mean" = "Distractor Instrument"))    #
+QUD.Graph2$Quadrant <- ordered(QUD.Graph2$Quadrant, levels = c("Target Animal", "Distractor Animal", "Target Instrument", "Distractor Instrument"))#
+ggplot(QUD.Graph2,aes(TimeFrame,Prop,linetype = Quadrant)) + facet_wrap(~Age+Cond+QCond, nrow = 4, ncol = 2) + stat_summary(fun.y = mean, geom = "line", size = 1) + theme(legend.title=element_blank(),legend.position="bottom")+ theme(legend.title=element_blank(),legend.position="bottom")+scale_linetype_manual(values=c(1,2,3,4))+labs(x = "Time (ms)",y = "Proportion of Looks")
+require(lme4)#
+# Requires the QUD_Summary scripts to be run first.#
+#
+QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))#
+QUD.Window <- summaryBy(Inst~Cond+QCond+Trial+Name.+Age+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)#
+QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)#
+contrasts(QUD.Window$QCond)[1] <- -1#
+contrasts(QUD.Window$Age)[1] <- -1#
+contrasts(QUD.Window$Cond)[1] <- -1#
+contrasts(QUD.Window$Window)[1] <- -1#
+summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)#
+k <- summaryBy(Inst~QCond+Cond+Age+Name.+Window, data = QUD.Window, FUN = c(mean,sd))#
+k <- summaryBy(Inst.mean~QCond+Cond+Age+Window, data = k, FUN = c(mean,sd))#
+k$SE = k$Inst.mean.sd/sqrt(6)#
+#
+tapply(k$Inst.mean.mean, list(k$QCond,k$Window,k$Cond,k$Age), FUN = mean) -> o#
+tapply(k$SE, list(k$QCond,k$Window,k$Cond,k$Age), FUN = mean) -> se#
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Modifier Question", "Instrument Question"),  bty = "n", col = c("black","grey"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("grey","black"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "black")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "grey",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("blue","red"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "red")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "blue",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("blue","red"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "red")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "blue",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("blue","red"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "red")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "blue",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
+#barplot(o, beside =T , ylim = c(610,650), col = "white", border = NA, ylab = "Naming Time (ms)", xlab = "Distance from associate to target word") -> p#
+old.par <- par(mfrow=c(2, 2))#
+for (i in c(1:2)){#
+	for (j in c(1:2)){#
+ barplot(o[,,1,1], beside =T , ylim = c(-0.1,1.1),col = "white",  border = NA, ylab = "Proportion trials gazing at instrument",  names.arg = c("Early Time Window", "Late Time Window"))#
+ if (i == 1){#
+ 	if (j == 1){#
+ 	 title(main = "5-year-olds hearing \n Equi-biased verbs")#
+	 legend(1,0.8, legend = c("Instrument Question","Modifier Question"),  bty = "n", col = c("blue","red"), pch = 20)#
+	 }else{#
+	 title(main = "5-year-olds hearing \n Instrument-biased verbs")}#
+	 }else{#
+	 if (j ==1){#
+	 title(main = "7-year-olds hearing \n Equi-biased verbs")#
+	 }else{#
+	 title(main = "7-year-olds hearing \n Instrument-biased verbs")#
+	 }#
+	 }#
+ points(c(1.8,4.8), o[1,,j,i], pch = 20, cex = 2, col = "red")#
+ points(c(2.2,5.2), o[2,,j,i], pch = 20, cex = 2, col = "blue",lwd = 2)#
+ grid(nx = NA, ny = NULL, col = "gray", lty = "dotted",lwd = par("lwd"), equilogs = TRUE)#
+  arrows(c(1.8,2.2,4.8,5.2), (c(o[,,j,i]) + c(se[,,j,i])+0.01), c(1.8,2.2,4.8,5.2),  (c(o[,,j,i]) - c(se[,,j,i])-0.01), code = 0)#
+lines(c(1.8,4.8), o[1,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+lines(c(2.2,5.2), o[2,,j,i], pch = 15, cex = 5, col = "black", lty = 3)#
+}#
+} #
+par(old.par)
