@@ -3,15 +3,15 @@
 # The last SummaryBy statement can be modified to look at only the first X gazes, currently set at 4 to capture the first 3 eye movements (1 is starting point), currently 
 LooksToInst = function(data){
 require(plyr)
-data = ddply(data,~Name.+Trial,transform,NextCode = c(Code[2:(length(Code))],Code[length(Code)]))
+data = ddply(data,~Name+Trial,transform,NextCode = c(Code[2:(length(Code))],Code[length(Code)]))
 data$SwitInst = 0
 data[data$NextCode %in% c("TI"),]$SwitInst = 1
-data = ddply(data,~Name.+Trial,transform,LookEnd = c(TimeFrame[2:(length(TimeFrame))],TimeFrame[length(TimeFrame)]))
+data = ddply(data,~Name+Trial,transform,LookEnd = c(TimeFrame[2:(length(TimeFrame))],TimeFrame[length(TimeFrame)]))
 data$LookTime = data$LookEnd - data$TimeFrame
 if ("RC" %in% colnames(data)){
-data.Look <- summaryBy(Inst+SwitInst~Cond+Pop+Name.+ItemNo+ExOrd, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. 
+data.Look <- summaryBy(Inst+SwitInst~Cond+Pop+Name+ItemNo+ExOrd, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. 
 }
-else data.Look <- summaryBy(Inst+SwitInst~Cond+Name.+ItemNo, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. 
+else data.Look <- summaryBy(Inst+SwitInst~Cond+Name+ItemNo, data = data[ data$LookTime > 0,], FUN = sum) # This and the above 3 lines ensure that we don't count any 1-frame-long looks, eg the last line of each trial in the datafile. 
 data.Look$Inst = 0
 data.Look[data.Look$Inst.sum > 0,]$Inst = 1
 return(data.Look)
@@ -25,7 +25,7 @@ return(data.Look)
 
 proc_subj.NoExpand = function(filename,Timing,PlaceCodes){
 require(gdata)
-subj = read.xls(filename, sheet=2)
+subj = read.csv(filename, header = T)
 #subj = filename
 PlaceCodes$Cond = "Inst"
 PlaceCodes$Block = "Second"

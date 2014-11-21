@@ -2,7 +2,7 @@ require(doBy)
 require(lme4)
 require(XLConnect)
 require(gdata)
-QUD.Act <-  read.csv("./Actions/Combined.csv", sheet=1)
+QUD.Act <-  read.csv("./Actions/Combined.csv")
 names(QUD.Act)[names(QUD.Act)=="Instrument.do.they.use.the.big.instrument.."] <- "Inst"
 contrasts(QUD.Act$Condition)[1] <- -1
 contrasts(QUD.Act$Block)[1] <- -1

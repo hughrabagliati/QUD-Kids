@@ -17,7 +17,7 @@ QUD.Look = LooksToInst(QUD)
 
 one.way.plot(QUD.Look$Inst, QUD.Look$Cond, QUD.Look$Name, x.label = "Question Type", main.label = "", y.label = "Trials with looks to Instrument")
 
-summary(glmer(Inst~Cond + (1+Cond|Name.)+(1+Cond|ItemNo), data= QUD.Look, family = "binomial"))
+summary(glmer(Inst~Cond + (1+Cond|Name)+(1+Cond|ItemNo), data= QUD.Look, family = "binomial"))
 
 
 
@@ -26,15 +26,15 @@ QUD <- QUD[QUD$Block == "First",]
 
 
 
-ddply(QUD, .(Name.,Trial,Cond,Vb,Prep,NP2,PrepFrame,NP2Frame), summarize, TimeFrame = c(0:max(TimeFrame))) -> QUD.Expand
-QUD.Expand <- merge(QUD,QUD.Expand, by = c("Name.","Trial","Cond","TimeFrame","Vb","Prep","NP2","PrepFrame","NP2Frame"), all= TRUE)
+ddply(QUD, .(Name,Trial,Cond,Vb,Prep,NP2,PrepFrame,NP2Frame), summarize, TimeFrame = c(0:max(TimeFrame))) -> QUD.Expand
+QUD.Expand <- merge(QUD,QUD.Expand, by = c("Name","Trial","Cond","TimeFrame","Vb","Prep","NP2","PrepFrame","NP2Frame"), all= TRUE)
 QUD.Expand$Inst <- t(imputation(matrix(QUD.Expand$Inst, nrow = 1),method = "locf"))
 QUD.Expand$TA <- t(imputation(matrix(QUD.Expand$TA, nrow = 1),method = "locf"))
 QUD.Expand$DA <- t(imputation(matrix(QUD.Expand$DA, nrow = 1),method = "locf"))
 QUD.Expand$DI <- t(imputation(matrix(QUD.Expand$DI, nrow = 1),method = "locf"))
 
-QUD.Expand <- ddply(QUD.Expand, .(Name.,Trial), transform, Period = ifelse(TimeFrame >= NP2Frame,"NP2",ifelse(TimeFrame >= PrepFrame,"Prep","Verb"))) 
-QUD.Expand <- ddply(QUD.Expand, .(Name.,Trial), transform, TimeFrame = TimeFrame - NP2Frame) 
+QUD.Expand <- ddply(QUD.Expand, .(Name,Trial), transform, Period = ifelse(TimeFrame >= NP2Frame,"NP2",ifelse(TimeFrame >= PrepFrame,"Prep","Verb"))) 
+QUD.Expand <- ddply(QUD.Expand, .(Name,Trial), transform, TimeFrame = TimeFrame - NP2Frame) 
 QUD.Expand$TimeFrame <- QUD.Expand$TimeFrame* 30
 
 save(list = "QUD.Expand", file = "QUD_Expand_Adult.RDATA")
@@ -46,7 +46,7 @@ se <- function(x){
 	return(x)
 	}
 
-QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+Name., data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+Name, data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)
 QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond, data = QUD.Graph, FUN = c(mean,se))
 levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Inst"] <- "Instrument Question"
 levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Mod"] <- "Modifier Question"
