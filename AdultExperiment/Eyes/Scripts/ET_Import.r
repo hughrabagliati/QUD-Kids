@@ -4,7 +4,7 @@
 library(doBy)
 
 ET_Import.NoExpand = function(path_name,Timing,PlaceCodes){
-list.files(path = path_name,full.names = T, pattern = ".xlsx") -> file_list
+list.files(path = path_name,full.names = T, pattern = ".csv") -> file_list
 
 ET = c()
 for (x in file_list){

@@ -2,17 +2,17 @@ require(lme4)
 # Requires the QUD_Summary scripts to be run first.
 
 QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))
-QUD.Window <- summaryBy(Inst~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
+QUD.Window <- summaryBy(Inst~Cond+Trial+Name+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
 QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)
 contrasts(QUD.Window$Cond)[1] <- -1
 summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)
 
 #Stats
 
-summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))
-summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))
+summary(glmer(Inst~Cond+ (1|Name) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))
+summary(glmer(Inst~Cond + (1|Name) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))
 
-q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))
+q <- summaryBy(Inst~Cond+Window+Name, data = QUD.Window, FUN = c(mean,sd))
 q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))
 q$SE = q$Inst.mean.sd/sqrt(12)
 tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o
