@@ -2,7 +2,7 @@ require(lme4)
 # Requires the QUD_Summary scripts to be run first.
 
 QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))
-QUD.Window <- summaryBy(Inst~Cond+QCond+Trial+Name.+Age+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
+QUD.Window <- summaryBy(Inst~Cond+QCond+Trial+Name.+Age+Window, data = QUD.Expand[QUD.Expand$TimeFrame >= 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
 QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)
 contrasts(QUD.Window$QCond)[1] <- -1
 contrasts(QUD.Window$Age)[1] <- -1
