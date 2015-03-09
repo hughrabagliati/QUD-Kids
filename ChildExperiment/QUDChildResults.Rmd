@@ -195,20 +195,25 @@ par(old.par)
 We run our stats on each time window.
 
 ```{r}
+
+# Overall
+summary(glmer(Inst~Age*Cond*QCond*Window + (1|Name.) +(0+Window|Name.)+ (1|Trial)+(0+QCond+Window+Age|Trial), data = QUD.Window, family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
+
+#Stats
 #Early window
-summary(glmer(Inst~Age*Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow"), family = "binomial"))
+summary(glmer(Inst~Age*Cond*QCond + (1|Name.) + (1|Trial)+(0+QCond+Age|Trial), data = subset(QUD.Window, Window == "EarlyWindow"), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
 #Produces interaction btwn age and VerbCond
 #Check each age group
-summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" & Age == "5-years"), family = "binomial"))
-summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" & Age == "7-years"), family = "binomial"))
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1|Trial)+(0+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" & Age == "5-years"), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1|Trial)+(0+QCond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" & Age == "7-years"), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
 #Produces effect of Cond for youngest, and QCond for older.
 
 #Late window
-summary(glmer(Inst~Age*Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow"), family = "binomial"))
+summary(glmer(Inst~Age*Cond*QCond + (1|Name.) + (1|Trial)+(0+QCond+Age|Trial), data = subset(QUD.Window, Window == "LateWindow"), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
 #Produces interaction btwn age and VerbCond
 
-summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow" & Age == "5-years"), family = "binomial"))
-summary(glmer(Inst~Cond*QCond + (1|Name.) + (1+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow" & Age == "7-years"), family = "binomial"))
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1|Trial)+(0+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow" & Age == "5-years"), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
+summary(glmer(Inst~Cond*QCond + (1|Name.) + (1|Trial)+(0+QCond|Trial), data = subset(QUD.Window, Window == "LateWindow" & Age == "7-years"), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
 # Youngest show effect of both QCond and Cond
 # Oldest only show effect of QCond
 ```

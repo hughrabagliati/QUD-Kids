@@ -76,7 +76,7 @@ se <- function(x){
 	return(x)
 	}
 
-QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+Name., data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)
+QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond+Name, data = QUD.Expand[QUD.Expand$TimeFrame > -300 & QUD.Expand$TimeFrame <=1500,], FUN = c(mean),keep.names = T)
 QUD.Graph <- summaryBy(Inst+TA+DA+DI~TimeFrame+Cond, data = QUD.Graph, FUN = c(mean,se))
 levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Inst"] <- "Instrument Question"
 levels(QUD.Graph$Cond)[levels(QUD.Graph$Cond)=="Mod"] <- "Modifier Question"
@@ -109,7 +109,7 @@ To ***analyze*** this data, we split it into two 500ms time windows, beginning 2
 
 ```{r}
 QUD.Expand$Window <- as.factor(ifelse(QUD.Expand$TimeFrame <700, "EarlyWindow","LateWindow"))
-QUD.Window <- summaryBy(Inst~Cond+Trial+Name.+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
+QUD.Window <- summaryBy(Inst~Cond+Trial+Name+Window, data = QUD.Expand[QUD.Expand$TimeFrame > 200 & QUD.Expand$TimeFrame < 1200,], FUN = c(mean),keep.names = T,na.rm = T)
 QUD.Window$Inst <- ifelse(QUD.Window$Inst > 0,1,0)
 contrasts(QUD.Window$Cond)[1] <- -1
 summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)
@@ -117,7 +117,7 @@ summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)
 
 We plot a graph
 ```{r}
-q <- summaryBy(Inst~Cond+Window+Name., data = QUD.Window, FUN = c(mean,sd))
+q <- summaryBy(Inst~Cond+Window+Name, data = QUD.Window, FUN = c(mean,sd))
 q <- summaryBy(Inst.mean~Cond+Window, data = q, FUN = c(mean,sd))
 q$SE = q$Inst.mean.sd/sqrt(12)
 tapply(q$Inst.mean.mean, list(q$Window, q$Cond), FUN = mean) -> o
@@ -133,10 +133,13 @@ lines(c(1.8,4.8), o[,1], pch = 15, cex = 5, col = "black", lty = 3)
 lines(c(2.2,5.2), o[,2], pch = 15, cex = 5, col = "black", lty = 3)
 ```
 
-We run our stats on each time window.
+We run our stats.
 
 ```{r}
-summary(glmer(Inst~Cond+ (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial"))
-summary(glmer(Inst~Cond + (1|Name.) + (1+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial"))
+summary(glmer(Inst~Cond*Window+ (1|Name) + (1|Trial)+(0+Cond+Window|Trial), data = QUD.Window, family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
+
+summary(glmer(Inst~Cond+ (1|Name) + (1|Trial)+(0+Cond|Trial), data = subset(QUD.Window, Window == "EarlyWindow" ), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
+summary(glmer(Inst~Cond + (1|Name) +(1|Trial)+ (0+Cond|Trial), data = subset(QUD.Window, Window == "LateWindow" ), family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
+
 
 ```

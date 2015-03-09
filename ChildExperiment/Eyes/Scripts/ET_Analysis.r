@@ -12,7 +12,7 @@ summaryBy(Inst~Age+Window+Cond+QCond, data = QUD.Window)
 
 
 # Overall
-summary(glmer(Inst~Age*Cond*QCond*Window + (1|Name.) +(0+Window|Name.)+ (1|Trial)+(0+QCond+Window+Age|Trial), data = QUD.Window, family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))x
+summary(glmer(Inst~Age*Cond*QCond*Window + (1|Name.) +(0+Window|Name.)+ (1|Trial)+(0+QCond+Window+Age|Trial), data = QUD.Window, family = "binomial",control=glmerControl(optCtrl=list(maxfun=20000), optimizer = "bobyqa" )))
 
 #Stats
 #Early window
