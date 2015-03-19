@@ -56,8 +56,8 @@ for (i in unique(PlaceCodes$ItemNo)){
 	if (length(subj[subj$Trial == i & subj$Marker.Name == "LR",]$Code) > 0){subj[subj$Trial == i & subj$Marker.Name == "LR",]$Code = as.character(PlaceCodes[PlaceCodes$ItemNo == i ,]$LR)}
 	}
 
-subj$PrepFrame = round((subj$Prep - subj$Vb)*(1000/30))
-subj$NP2Frame = round((subj$NP2 - subj$Vb)*(1000/30))
+subj$PrepFrame = round((subj$Prep - subj$Vb)*24)
+subj$NP2Frame = round((subj$NP2 - subj$Vb)*24)
 
 subj$Hour = read.table(textConnection(as.character(subj$Start)), sep = ":")[,1]
 subj$Min = read.table(textConnection(as.character(subj$Start)), sep = ":")[,2]

@@ -35,7 +35,7 @@ QUD.Expand$DI <- t(imputation(matrix(QUD.Expand$DI, nrow = 1),method = "locf"))
 
 QUD.Expand <- ddply(QUD.Expand, .(Name,Trial), transform, Period = ifelse(TimeFrame >= NP2Frame,"NP2",ifelse(TimeFrame >= PrepFrame,"Prep","Verb"))) 
 QUD.Expand <- ddply(QUD.Expand, .(Name,Trial), transform, TimeFrame = TimeFrame - NP2Frame) 
-QUD.Expand$TimeFrame <- QUD.Expand$TimeFrame* 30
+QUD.Expand$TimeFrame <- QUD.Expand$TimeFrame* 24
 
 save(list = "QUD.Expand", file = "QUD_Expand_Adult.RDATA")
 
